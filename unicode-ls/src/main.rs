@@ -180,7 +180,7 @@ async fn main() {
         "Gamma" => 'Γ',
         "delta" => 'δ',
         "Delta" => 'Δ',
-        "epsilon" => 'δ',
+        "epsilon" => 'ε',
         "zeta" => 'ζ',
         "eta" => 'η',
         "n" => 'η',
