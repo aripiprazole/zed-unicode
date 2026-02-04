@@ -114,7 +114,6 @@ async fn main() {
         ":" => '⦂',
         "N" => 'ℕ',
         "C" => 'ℂ',
-        "delta" => 'Δ',
         "contains" => '∋',
         "not contains" => '∌',
         "superset" => '⊃',
