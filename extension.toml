@@ -4,7 +4,7 @@ version = "0.1.5"
 schema_version = 1
 authors = ["Gabrielle Guimarães de Oliveira <gabrielle1guim@gmail.com>"]
 description = "Unicode characters for Zed"
-repository = "https://github.com/aripiprazole/unicode"
+repository = "https://github.com/aripiprazole/zed-unicode"
 
 [language_servers.unicode]
 name = "unicode"
