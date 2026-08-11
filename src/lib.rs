@@ -148,7 +148,7 @@ impl zed::Extension for UnicodeExtension {
             .get("include_all_symbols")
             .and_then(|x| x.as_bool())
             .filter(|x| *x)
-            .map(|_| vec!["--include_all_symbols".into()])
+            .map(|_| vec!["--include-all-symbols".into()])
             .unwrap_or_default();
 
         Ok(Command {
