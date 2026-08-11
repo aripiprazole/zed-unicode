@@ -10,7 +10,7 @@ members = ["unicode-ls"]
 crate-type = ["cdylib"]
 
 [workspace.package]
-version = "0.1.7"
+version = "0.2.0"
 
 [dependencies]
 serde = "1.0.215"
