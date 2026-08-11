@@ -94,7 +94,12 @@ impl UnicodeExtension {
         &mut self,
         language_server_id: &LanguageServerId,
         worktree: &Worktree,
+        user_binary_path: Option<String>,
     ) -> Result<String, String> {
+        if let Some(path) = user_binary_path {
+            return Ok(path);
+        }
+
         zed::set_language_server_installation_status(
             language_server_id,
             &zed::LanguageServerInstallationStatus::CheckingForUpdate,
@@ -131,25 +136,50 @@ impl zed::Extension for UnicodeExtension {
         }
     }
 
-    async fn language_server_command(
+    fn language_server_command(
         &mut self,
         language_server_id: &LanguageServerId,
         worktree: &Worktree,
     ) -> Result<Command> {
-        let ls_binary_path = self.language_server_binary_path(language_server_id, worktree)?;
-        let settings = LspSettings::for_worktree("unicode", worktree)
-            .map(|lsp_settings| lsp_settings.settings)
-            .unwrap_or_default()
-            .unwrap_or(serde_json::json!({
-                "include_all_symbols": false
-            }));
+        let lsp_settings = LspSettings::for_worktree("unicode", worktree).unwrap_or_default();
 
-        let args = settings
-            .get("include_all_symbols")
-            .and_then(|x| x.as_bool())
-            .filter(|x| *x)
-            .map(|_| vec!["--include_all_symbols".into()])
-            .unwrap_or_default();
+        let binary_settings = lsp_settings.binary;
+        let settings = lsp_settings.settings.unwrap_or(serde_json::json!({
+            "include_all_symbols": false,
+            "prefix": ""
+        }));
+
+        let ls_binary_path = self.language_server_binary_path(
+            language_server_id,
+            worktree,
+            binary_settings
+                .as_ref()
+                .and_then(|binary| binary.path.clone()),
+        )?;
+
+        let args = match binary_settings.and_then(|binary| binary.arguments) {
+            Some(arguments) => arguments,
+            None => {
+                let mut args = Vec::new();
+
+                if settings
+                    .get("include_all_symbols")
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false)
+                {
+                    args.push("--include-all-symbols".into());
+                }
+
+                if let Some(prefix) = settings.get("prefix").and_then(|x| x.as_str()) {
+                    if !prefix.is_empty() {
+                        args.push("--prefix".into());
+                        args.push(prefix.into());
+                    }
+                }
+
+                args
+            }
+        };
 
         Ok(Command {
             args,

@@ -44,14 +44,13 @@ fn get_prefix(s: &str) -> Option<String> {
 struct Cli {
     #[arg(short, long)]
     include_all_symbols: bool,
+    /// Require this string before a snippet trigger, e.g. "u" turns "lambda"
+    /// into "ulambda". Use an alphanumeric prefix, not punctuation.
+    #[arg(long, default_value = "")]
+    prefix: String,
 }
 
-#[tokio::main]
-async fn main() {
-    let cli = Cli::parse();
-    let stdin = tokio::io::stdin();
-    let stdout = tokio::io::stdout();
-
+fn build_snippets(cli: &Cli) -> Vec<Snippet> {
     let mut snippets = create_snippet_map! {
         "Rightarrow" => '⇒',
         "=>" => '⇒',
@@ -99,7 +98,6 @@ async fn main() {
         "E" => 'Ɛ',
         "f" => 'ƒ',
         "W" => 'Ɯ',
-        "lambda" => 'ƛ',
         "o" => 'Ɵ',
         "T" => 'Ƭ',
         "Y" => 'Ʊ',
@@ -172,9 +170,11 @@ async fn main() {
         ":=" => '≔',
         "alpha" => 'α',
         "a" => 'α',
+        "Alpha" => 'Α',
         "beta" => 'β',
         "b" => 'β',
         "B" => 'β',
+        "Beta" => 'Β',
         "y" => 'γ',
         "Y" => 'γ',
         "gamma" => 'γ',
@@ -182,45 +182,56 @@ async fn main() {
         "delta" => 'δ',
         "Delta" => 'Δ',
         "epsilon" => 'ε',
+        "Epsilon" => 'Ε',
         "zeta" => 'ζ',
+        "Zeta" => 'Ζ',
         "eta" => 'η',
         "n" => 'η',
+        "Eta" => 'Η',
         "theta" => 'θ',
         "Theta" => 'Θ',
         "iota" => 'ι',
+        "Iota" => 'Ι',
         "kappa" => 'κ',
         "k" => 'κ',
+        "Kappa" => 'Κ',
         "\\" => 'λ',
         "lambda" => 'λ',
         "Lambda" => 'Λ',
         "^" => 'Λ',
         "mu" => 'μ',
+        "Mu" => 'Μ',
         "nu" => 'ν',
+        "Nu" => 'Ν',
         "E" => 'ξ',
         "xi" => 'ξ',
         "===" => 'Ξ',
         "Xi" => 'Ξ',
+        "omicron" => 'ο',
+        "Omicron" => 'Ο',
         "pi" => 'π',
         "Pi" => 'Π',
         "rho" => 'ρ',
+        "Rho" => 'Ρ',
         "sigma" => 'σ',
         "Sigma" => 'Σ',
         "tau" => 'τ',
         "t" => 'τ',
+        "Tau" => 'Τ',
         "upsilon" => 'υ',
         "u" => 'υ',
+        "Upsilon" => 'Υ',
         "phi" => 'φ',
         "Phi" => 'Φ',
         "chi" => 'χ',
         "x" => 'χ',
+        "Chi" => 'Χ',
         "psi" => 'ψ',
         "Psi" => 'Ψ',
         "omega" => 'ω',
         "Omega" => 'Ω',
         "->>" => '↠'
     };
-
-    dbg!(cli.include_all_symbols);
 
     if cli.include_all_symbols {
         for line in include_str!("data.txt").split("\n") {
@@ -254,7 +265,7 @@ async fn main() {
         }
     }
 
-    let all_snippets = snippets
+    snippets
         .into_iter()
         .filter(|s| {
             !s.body.is_empty()
@@ -263,11 +274,22 @@ async fn main() {
                     None => false,
                 }
         })
-        .collect();
+        .map(|mut s| {
+            if !cli.prefix.is_empty() {
+                s.prefix = format!("{}{}", cli.prefix, s.prefix);
+            }
+            s
+        })
+        .collect()
+}
 
-    // turnstile
+#[tokio::main]
+async fn main() {
+    let cli = Cli::parse();
+    let stdin = tokio::io::stdin();
+    let stdout = tokio::io::stdout();
 
-    dbg!(&all_snippets);
+    let all_snippets = build_snippets(&cli);
 
     server::start(
         stdin,
@@ -277,4 +299,73 @@ async fn main() {
         etcetera::home_dir().unwrap().to_str().unwrap().into(),
     )
     .await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    fn cli(prefix: &str) -> Cli {
+        Cli {
+            include_all_symbols: false,
+            prefix: prefix.to_string(),
+        }
+    }
+
+    fn find<'a>(snippets: &'a [Snippet], prefix: &str) -> &'a Snippet {
+        snippets
+            .iter()
+            .find(|s| s.prefix == prefix)
+            .unwrap_or_else(|| panic!("no snippet with prefix {prefix:?}"))
+    }
+
+    #[test]
+    fn get_prefix_strips_script_names_and_spaces() {
+        assert_eq!(
+            get_prefix("GREEK SMALL LETTER ALPHA"),
+            Some("SMALL-LETTER-ALPHA".to_string())
+        );
+        assert_eq!(get_prefix("<control>"), None);
+    }
+
+    #[test]
+    fn no_duplicate_prefixes_in_base_map() {
+        let snippets = build_snippets(&cli(""));
+        let mut seen = HashSet::new();
+        for s in &snippets {
+            assert!(seen.insert(&s.prefix), "duplicate prefix: {}", s.prefix);
+        }
+    }
+
+    #[test]
+    fn lambda_defaults_to_greek_letter() {
+        let snippets = build_snippets(&cli(""));
+        assert_eq!(find(&snippets, "lambda").body, "λ");
+    }
+
+    #[test]
+    fn all_greek_letters_are_present() {
+        let snippets = build_snippets(&cli(""));
+        let lower = [
+            "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota",
+            "kappa", "lambda", "mu", "nu", "xi", "omicron", "pi", "rho", "sigma", "tau",
+            "upsilon", "phi", "chi", "psi", "omega",
+        ];
+        let upper = [
+            "Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta", "Iota",
+            "Kappa", "Lambda", "Mu", "Nu", "Xi", "Omicron", "Pi", "Rho", "Sigma", "Tau",
+            "Upsilon", "Phi", "Chi", "Psi", "Omega",
+        ];
+        for name in lower.into_iter().chain(upper) {
+            find(&snippets, name);
+        }
+    }
+
+    #[test]
+    fn prefix_flag_is_prepended_to_every_snippet() {
+        let snippets = build_snippets(&cli("u"));
+        assert_eq!(find(&snippets, "ulambda").body, "λ");
+        assert!(snippets.iter().all(|s| s.prefix.starts_with('u')));
+    }
 }
