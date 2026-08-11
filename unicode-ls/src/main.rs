@@ -44,6 +44,10 @@ fn get_prefix(s: &str) -> Option<String> {
 struct Cli {
     #[arg(short, long)]
     include_all_symbols: bool,
+    /// Require this string before a snippet trigger, e.g. "u" turns "lambda"
+    /// into "ulambda". Use an alphanumeric prefix, not punctuation.
+    #[arg(long, default_value = "")]
+    prefix: String,
 }
 
 #[tokio::main]
@@ -274,6 +278,12 @@ async fn main() {
                     Some(s) => !s.is_empty(),
                     None => false,
                 }
+        })
+        .map(|mut s| {
+            if !cli.prefix.is_empty() {
+                s.prefix = format!("{}{}", cli.prefix, s.prefix);
+            }
+            s
         })
         .collect();
 
