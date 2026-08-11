@@ -220,8 +220,6 @@ async fn main() {
         "->>" => '↠'
     };
 
-    dbg!(cli.include_all_symbols);
-
     if cli.include_all_symbols {
         for line in include_str!("data.txt").split("\n") {
             if line.is_empty() {
@@ -264,10 +262,6 @@ async fn main() {
                 }
         })
         .collect();
-
-    // turnstile
-
-    dbg!(&all_snippets);
 
     server::start(
         stdin,
