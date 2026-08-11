@@ -131,7 +131,7 @@ impl zed::Extension for UnicodeExtension {
         }
     }
 
-    fn language_server_command(
+    async fn language_server_command(
         &mut self,
         language_server_id: &LanguageServerId,
         worktree: &Worktree,
